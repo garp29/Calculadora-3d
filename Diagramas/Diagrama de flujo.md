@@ -1,6 +1,6 @@
-```
+```mermaid
 flowchart TD
-    Inicio(["Inicio"]) --> E1[/"Elegir función, xmin, xmax, paso y modo de ángulo"/]
+    Inicio(["Inicio"]) --> E1[/ "Elegir función, xmin, xmax, paso y modo de ángulo" /]
     E1 --> D1{"¿Existe la función trigonométrica?"}
 
     %% Validación de función, rango (xmin < xmax) y paso (paso > 0)
@@ -18,21 +18,21 @@ flowchart TD
 
     D4 -- No --> P_ErrPy["Capturar mensaje de error de Python"]
 
-    %% Guardado de la serie y los puntos en la Base de Datos (incluidos puntos sin valor)
-    D4 -- Sí --> BD1[["Guardar serie en la base de datos"]]
-    BD1 --> BD2[["Guardar puntos e indefinidos en la base de datos"]]
+    %% Guardado de la serie y los puntos en la Base de Datos
+    D4 -- Sí --> BD1[(Guardar serie en la base de datos)]
+    BD1 --> BD2[(Guardar puntos e indefinidos en la base de datos)]
 
     %% Generación de la gráfica leyendo desde la Base de Datos (graficar.py)
     BD2 --> P_InvGraf["Invocar graficar.py desde Java"]
-    P_InvGraf --> BD3[["Leer puntos de la serie desde la base de datos"]]
+    P_InvGraf --> BD3[(Leer puntos de la serie desde la base de datos)]
     BD3 --> P_GenPNG["Generar gráfica PNG con matplotlib"]
     P_GenPNG --> D5{"¿Se guardó el archivo PNG correctamente?"}
 
     D5 -- No --> P_ErrGraf["Asignar error de generación de gráfica"]
-    D5 -- Sí --> S_Ok[/"Mostrar gráfica generada al usuario"/]
+    D5 -- Sí --> S_Ok[/ "Mostrar gráfica generada al usuario" /]
 
     %% Camino unificado de salida de errores
-    P_ErrFn --> S_Err[/"Mostrar mensaje de error al usuario"/]
+    P_ErrFn --> S_Err[/ "Mostrar mensaje de error al usuario" /]
     P_ErrRango --> S_Err
     P_ErrPaso --> S_Err
     P_ErrPy --> S_Err
@@ -41,4 +41,3 @@ flowchart TD
     %% Cierre único en Fin
     S_Ok --> Fin(["Fin"])
     S_Err --> Fin
-    
