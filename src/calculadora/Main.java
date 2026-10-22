@@ -29,8 +29,9 @@ public class Main {
             System.out.println("3. Ver Historial de Cálculos (SQLite)");
             System.out.println("4. Salir");
             System.out.println("5. Graficar Serie Personalizada (rango xmin, xmax, paso)");
+            System.out.println("6. Graficar Superficie 3D (z = f(x, y))");
             System.out.println("----------------------------------------------------------");
-            System.out.println("💡 Tip: También puedes escribir directo ej: 'sin 90' o 'cos 180'");
+            System.out.println("💡 Tip: Escribe 'sin 90', 'cos 180' o '3d sombrero', '3d ondas'");
             System.out.print("Seleccione una opción o escriba la operación: ");
 
             if (!scanner.hasNextLine()) {
@@ -166,6 +167,43 @@ public class Main {
 
                 VisorGrafica.procesarYGraficarEnTiempoReal(dao, fn, null, xMin, xMax, paso, modo, false);
 
+            } else if (opcion == 6) {
+                // Menú de graficación de superficies 3D (z = f(x, y))
+                System.out.println("\n--- GRAFICAR SUPERFICIE 3D (z = f(x, y)) ---");
+                System.out.println("Superficies disponibles: ondas, sombrero, paraboloide, silla, ripple, gaussiana");
+                System.out.print("Ingrese el tipo de superficie [por defecto sombrero]: ");
+                String fn = scanner.nextLine().trim().toLowerCase();
+                if (fn.isEmpty()) {
+                    fn = "sombrero";
+                }
+
+                double[] rango3D = obtenerRangoPorDefecto3D(fn);
+                System.out.print(String.format("¿Desea usar rangos automáticos recomendados (X, Y: [%.1f a %.1f], paso %.2f)? (s/n) [s]: ",
+                        rango3D[0], rango3D[1], rango3D[4]));
+                String respRango = scanner.nextLine().trim().toLowerCase();
+
+                double xMin = rango3D[0], xMax = rango3D[1], yMin = rango3D[2], yMax = rango3D[3], paso = rango3D[4];
+                if (respRango.equals("n") || respRango.equals("no")) {
+                    System.out.print("Ingrese X mínimo: ");
+                    xMin = Double.parseDouble(scanner.nextLine().trim());
+                    System.out.print("Ingrese X máximo: ");
+                    xMax = Double.parseDouble(scanner.nextLine().trim());
+                    System.out.print("Ingrese Y mínimo: ");
+                    yMin = Double.parseDouble(scanner.nextLine().trim());
+                    System.out.print("Ingrese Y máximo: ");
+                    yMax = Double.parseDouble(scanner.nextLine().trim());
+                    System.out.print("Ingrese el paso de malla (ej. 0.25): ");
+                    paso = Double.parseDouble(scanner.nextLine().trim());
+                }
+
+                System.out.print("Paleta de color (coolwarm, viridis, plasma, magma, cividis) [coolwarm]: ");
+                String paleta = scanner.nextLine().trim().toLowerCase();
+                if (paleta.isEmpty()) {
+                    paleta = "coolwarm";
+                }
+
+                VisorGrafica.procesarYGraficar3D(dao, fn, xMin, xMax, yMin, yMax, paso, paleta);
+
             } else {
                 System.out.println("Opción inválida.");
             }
@@ -224,11 +262,40 @@ public class Main {
     }
 
     /**
-     * Permite escribir directamente expresiones como "sin 90", "sin 90°", "tan 45 rad" en el menú.
+     * Devuelve los rangos óptimos [xMin, xMax, yMin, yMax, paso] para cada superficie 3D.
+     */
+    public static double[] obtenerRangoPorDefecto3D(String fn) {
+        if (fn.startsWith("sombrero") || fn.startsWith("ripple")) {
+            return new double[]{-8.0, 8.0, -8.0, 8.0, 0.3};
+        } else if (fn.startsWith("gaussiana")) {
+            return new double[]{-3.0, 3.0, -3.0, 3.0, 0.15};
+        } else if (fn.startsWith("silla") || fn.startsWith("paraboloide")) {
+            return new double[]{-4.0, 4.0, -4.0, 4.0, 0.25};
+        } else {
+            return new double[]{-5.0, 5.0, -5.0, 5.0, 0.25};
+        }
+    }
+
+    /**
+     * Permite escribir directamente expresiones como "sin 90", "cos 180", o comandos "3d sombrero", "3d ondas".
      */
     private static boolean intentarEjecutarExpresionDirecta(String entrada, CalculoDAO dao) {
         String limpia = entrada.trim().toLowerCase();
         String[] tokens = limpia.split("\\s+");
+        if (tokens.length == 0) {
+            return false;
+        }
+
+        // Detección directa de comando 3D (ej. "3d", "3d sombrero", "3d ondas viridis")
+        if (tokens[0].equals("3d")) {
+            String fn = tokens.length > 1 ? tokens[1] : "sombrero";
+            String paleta = tokens.length > 2 ? tokens[2] : "coolwarm";
+            double[] r = obtenerRangoPorDefecto3D(fn);
+            System.out.println("🌐 Renderizando superficie 3D: '" + fn + "' con paleta '" + paleta + "'...");
+            VisorGrafica.procesarYGraficar3D(dao, fn, r[0], r[1], r[2], r[3], r[4], paleta);
+            return true;
+        }
+
         if (tokens.length < 2) {
             return false;
         }

@@ -1,6 +1,7 @@
 package calculadora.vista;
 
 import calculadora.dao.CalculoDAO;
+import calculadora.modelo.Graficador3D;
 import calculadora.modelo.OperacionTrigonometrica;
 
 import javax.imageio.ImageIO;
@@ -12,8 +13,8 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Ventana interactiva en tiempo real que muestra la gráfica PNG generada por Python
- * desde SQLite y permite ingresar operaciones en vivo.
+ * Ventana interactiva en tiempo real que muestra gráficas 2D y superficies 3D
+ * generadas por Python e integradas con Java y SQLite.
  */
 public class VisorGrafica extends JFrame {
 
@@ -24,96 +25,157 @@ public class VisorGrafica extends JFrame {
     private final JLabel lblRutaArchivo;
     private final PanelImagen panelImagen;
 
-    // Controles interactivos en tiempo real dentro de la ventana
-    private final JComboBox<String> cmbFuncion;
-    private final JTextField txtValor;
-    private final JComboBox<String> cmbModo;
-    private final JTextField txtXMin;
-    private final JTextField txtXMax;
-    private final JTextField txtPaso;
+    // Controles 2D
+    private final JComboBox<String> cmbFuncion2D;
+    private final JTextField txtValor2D;
+    private final JComboBox<String> cmbModo2D;
+    private final JTextField txtXMin2D;
+    private final JTextField txtXMax2D;
+    private final JTextField txtPaso2D;
+
+    // Controles 3D
+    private final JComboBox<String> cmbFuncion3D;
+    private final JTextField txtXMin3D;
+    private final JTextField txtXMax3D;
+    private final JTextField txtYMin3D;
+    private final JTextField txtYMax3D;
+    private final JTextField txtPaso3D;
+    private final JComboBox<String> cmbPaleta3D;
 
     public VisorGrafica(CalculoDAO dao) {
-        super("Calculadora Integrada — Visor Gráfico en Tiempo Real (Java + Python + SQLite)");
+        super("Calculadora 3D Integrada — Visor Gráfico en Tiempo Real (Java + Python + SQLite)");
         this.dao = dao;
 
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-        setSize(980, 680);
+        setSize(1020, 720);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(8, 8));
         getContentPane().setBackground(new Color(248, 250, 252));
 
-        // 1. Panel superior: Controles interactivos en tiempo real
-        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        panelControles.setBackground(new Color(30, 41, 59));
-        panelControles.setBorder(new EmptyBorder(6, 10, 6, 10));
+        // Pestañas superiores para alternar entre Modo 2D y Modo 3D
+        JTabbedPane tabsModos = new JTabbedPane();
+        tabsModos.setFont(new Font("SansSerif", Font.BOLD, 12));
+        tabsModos.setBackground(new Color(241, 245, 249));
 
-        JLabel lblFn = crearEtiquetaBlanca("Función:");
-        cmbFuncion = new JComboBox<>(new String[]{"sin", "cos", "tan", "asin", "acos", "atan"});
-        cmbFuncion.setFont(new Font("SansSerif", Font.BOLD, 13));
+        // ==========================================
+        // Pestaña 1: Controles 2D
+        // ==========================================
+        JPanel panel2D = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        panel2D.setBackground(new Color(30, 41, 59));
+        panel2D.setBorder(new EmptyBorder(4, 8, 4, 8));
 
-        JLabel lblVal = crearEtiquetaBlanca("Valor/Ángulo:");
-        txtValor = new JTextField("90", 6);
-        txtValor.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        panel2D.add(crearEtiquetaBlanca("Función:"));
+        cmbFuncion2D = new JComboBox<>(new String[]{"sin", "cos", "tan", "asin", "acos", "atan"});
+        cmbFuncion2D.setFont(new Font("SansSerif", Font.BOLD, 12));
+        panel2D.add(cmbFuncion2D);
 
-        JLabel lblModo = crearEtiquetaBlanca("Modo:");
-        cmbModo = new JComboBox<>(new String[]{"grados", "radianes"});
-        cmbModo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        panel2D.add(crearEtiquetaBlanca("Ángulo/Valor:"));
+        txtValor2D = new JTextField("90", 5);
+        panel2D.add(txtValor2D);
 
-        JLabel lblMin = crearEtiquetaBlanca("xMin:");
-        txtXMin = new JTextField("-360", 5);
-        JLabel lblMax = crearEtiquetaBlanca("xMax:");
-        txtXMax = new JTextField("360", 5);
-        JLabel lblPaso = crearEtiquetaBlanca("Paso:");
-        txtPaso = new JTextField("15", 4);
+        panel2D.add(crearEtiquetaBlanca("Modo:"));
+        cmbModo2D = new JComboBox<>(new String[]{"grados", "radianes"});
+        panel2D.add(cmbModo2D);
 
-        JButton btnGraficar = new JButton("Calcular y Graficar en Vivo");
-        btnGraficar.setBackground(new Color(37, 99, 235));
-        btnGraficar.setForeground(Color.WHITE);
-        btnGraficar.setFocusPainted(false);
-        btnGraficar.setFont(new Font("SansSerif", Font.BOLD, 13));
+        panel2D.add(crearEtiquetaBlanca("xMin:"));
+        txtXMin2D = new JTextField("-360", 4);
+        panel2D.add(txtXMin2D);
 
-        // Ajustar rango sugerido automáticamente al cambiar de función o modo
-        cmbFuncion.addActionListener(e -> ajustarRangoPorDefecto());
-        cmbModo.addActionListener(e -> ajustarRangoPorDefecto());
+        panel2D.add(crearEtiquetaBlanca("xMax:"));
+        txtXMax2D = new JTextField("360", 4);
+        panel2D.add(txtXMax2D);
 
-        // Ejecutar en tiempo real al presionar Enter o el botón
-        Runnable accionEnVivo = this::ejecutarDesdeVentana;
-        btnGraficar.addActionListener(e -> accionEnVivo.run());
-        txtValor.addActionListener(e -> accionEnVivo.run());
-        txtXMin.addActionListener(e -> accionEnVivo.run());
-        txtXMax.addActionListener(e -> accionEnVivo.run());
-        txtPaso.addActionListener(e -> accionEnVivo.run());
+        panel2D.add(crearEtiquetaBlanca("Paso:"));
+        txtPaso2D = new JTextField("15", 3);
+        panel2D.add(txtPaso2D);
 
-        panelControles.add(lblFn);
-        panelControles.add(cmbFuncion);
-        panelControles.add(lblVal);
-        panelControles.add(txtValor);
-        panelControles.add(lblModo);
-        panelControles.add(cmbModo);
-        panelControles.add(lblMin);
-        panelControles.add(txtXMin);
-        panelControles.add(lblMax);
-        panelControles.add(txtXMax);
-        panelControles.add(lblPaso);
-        panelControles.add(txtPaso);
-        panelControles.add(btnGraficar);
+        JButton btnGraficar2D = new JButton("Calcular y Graficar 2D");
+        btnGraficar2D.setBackground(new Color(37, 99, 235));
+        btnGraficar2D.setForeground(Color.WHITE);
+        btnGraficar2D.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnGraficar2D.setFocusPainted(false);
+        panel2D.add(btnGraficar2D);
 
-        add(panelControles, BorderLayout.NORTH);
+        cmbFuncion2D.addActionListener(e -> ajustarRangoPorDefecto2D());
+        cmbModo2D.addActionListener(e -> ajustarRangoPorDefecto2D());
 
-        // 2. Panel central: Lienzo de la imagen PNG
+        Runnable accion2D = this::ejecutarDesdeVentana2D;
+        btnGraficar2D.addActionListener(e -> accion2D.run());
+        txtValor2D.addActionListener(e -> accion2D.run());
+        txtXMin2D.addActionListener(e -> accion2D.run());
+        txtXMax2D.addActionListener(e -> accion2D.run());
+        txtPaso2D.addActionListener(e -> accion2D.run());
+
+        tabsModos.addTab("📈 Curvas 2D (Seno, Coseno, Tangente)", panel2D);
+
+        // ==========================================
+        // Pestaña 2: Controles 3D
+        // ==========================================
+        JPanel panel3D = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        panel3D.setBackground(new Color(15, 23, 42));
+        panel3D.setBorder(new EmptyBorder(4, 8, 4, 8));
+
+        panel3D.add(crearEtiquetaBlanca("Superficie 3D:"));
+        cmbFuncion3D = new JComboBox<>(Graficador3D.FUNCIONES_DISPONIBLES);
+        cmbFuncion3D.setFont(new Font("SansSerif", Font.BOLD, 12));
+        panel3D.add(cmbFuncion3D);
+
+        panel3D.add(crearEtiquetaBlanca("X:"));
+        txtXMin3D = new JTextField("-5", 4);
+        txtXMax3D = new JTextField("5", 4);
+        panel3D.add(txtXMin3D);
+        panel3D.add(new JLabel("a") {{ setForeground(Color.WHITE); }});
+        panel3D.add(txtXMax3D);
+
+        panel3D.add(crearEtiquetaBlanca("Y:"));
+        txtYMin3D = new JTextField("-5", 4);
+        txtYMax3D = new JTextField("5", 4);
+        panel3D.add(txtYMin3D);
+        panel3D.add(new JLabel("a") {{ setForeground(Color.WHITE); }});
+        panel3D.add(txtYMax3D);
+
+        panel3D.add(crearEtiquetaBlanca("Paso:"));
+        txtPaso3D = new JTextField("0.25", 4);
+        panel3D.add(txtPaso3D);
+
+        panel3D.add(crearEtiquetaBlanca("Paleta:"));
+        cmbPaleta3D = new JComboBox<>(Graficador3D.PALETAS_COLOR);
+        panel3D.add(cmbPaleta3D);
+
+        JButton btnGraficar3D = new JButton("Renderizar Superficie 3D");
+        btnGraficar3D.setBackground(new Color(220, 38, 38));
+        btnGraficar3D.setForeground(Color.WHITE);
+        btnGraficar3D.setFont(new Font("SansSerif", Font.BOLD, 12));
+        btnGraficar3D.setFocusPainted(false);
+        panel3D.add(btnGraficar3D);
+
+        cmbFuncion3D.addActionListener(e -> ajustarRangoPorDefecto3D());
+        Runnable accion3D = this::ejecutarDesdeVentana3D;
+        btnGraficar3D.addActionListener(e -> accion3D.run());
+        txtXMin3D.addActionListener(e -> accion3D.run());
+        txtXMax3D.addActionListener(e -> accion3D.run());
+        txtYMin3D.addActionListener(e -> accion3D.run());
+        txtYMax3D.addActionListener(e -> accion3D.run());
+        txtPaso3D.addActionListener(e -> accion3D.run());
+
+        tabsModos.addTab("🌐 Superficies 3D: z = f(x, y)", panel3D);
+
+        add(tabsModos, BorderLayout.NORTH);
+
+        // 2. Panel central: Lienzo de la imagen
         panelImagen = new PanelImagen();
         add(panelImagen, BorderLayout.CENTER);
 
-        // 3. Panel inferior: Barra de estado con resultado y ruta donde queda guardada
+        // 3. Panel inferior: Barra de estado
         JPanel panelInferior = new JPanel(new BorderLayout(6, 4));
         panelInferior.setBackground(new Color(241, 245, 249));
         panelInferior.setBorder(new EmptyBorder(8, 14, 8, 14));
 
-        lblEstado = new JLabel("Listo. Ingrese una operación en la consola o en la barra superior para graficar en tiempo real.");
-        lblEstado.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lblEstado = new JLabel("Listo. Seleccione una operación en 2D o 3D para graficar en tiempo real.");
+        lblEstado.setFont(new Font("SansSerif", Font.BOLD, 13));
         lblEstado.setForeground(new Color(15, 23, 42));
 
-        lblRutaArchivo = new JLabel("Archivo PNG: bd\\grafica_serie_1.png");
+        lblRutaArchivo = new JLabel("Archivo PNG activo: bd\\grafica_actual.png");
         lblRutaArchivo.setFont(new Font("Monospaced", Font.PLAIN, 12));
         lblRutaArchivo.setForeground(new Color(71, 85, 105));
 
@@ -122,8 +184,11 @@ public class VisorGrafica extends JFrame {
 
         add(panelInferior, BorderLayout.SOUTH);
 
-        // Si existe una gráfica previa en bd\grafica_actual.png, mostrarla de inmediato al abrir
+        // Cargar imagen inicial si existe
         File imgInicial = new File("bd" + File.separator + "grafica_actual.png");
+        if (!imgInicial.exists()) {
+            imgInicial = new File("bd" + File.separator + "grafica_3d_test.png");
+        }
         if (imgInicial.exists()) {
             try {
                 panelImagen.setImagen(ImageIO.read(imgInicial));
@@ -140,83 +205,153 @@ public class VisorGrafica extends JFrame {
         return lbl;
     }
 
-    private void ajustarRangoPorDefecto() {
-        String fn = (String) cmbFuncion.getSelectedItem();
-        String modo = (String) cmbModo.getSelectedItem();
+    private void ajustarRangoPorDefecto2D() {
+        String fn = (String) cmbFuncion2D.getSelectedItem();
+        String modo = (String) cmbModo2D.getSelectedItem();
         if ("asin".equals(fn) || "acos".equals(fn)) {
-            txtXMin.setText("-1");
-            txtXMax.setText("1");
-            txtPaso.setText("0.05");
+            txtXMin2D.setText("-1");
+            txtXMax2D.setText("1");
+            txtPaso2D.setText("0.05");
         } else if ("atan".equals(fn)) {
-            txtXMin.setText("-10");
-            txtXMax.setText("10");
-            txtPaso.setText("0.5");
+            txtXMin2D.setText("-10");
+            txtXMax2D.setText("10");
+            txtPaso2D.setText("0.5");
         } else if ("radianes".equals(modo)) {
-            txtXMin.setText("-6.28");
-            txtXMax.setText("6.28");
-            txtPaso.setText("0.25");
+            txtXMin2D.setText("-6.28");
+            txtXMax2D.setText("6.28");
+            txtPaso2D.setText("0.25");
         } else {
-            txtXMin.setText("-360");
-            txtXMax.setText("360");
-            txtPaso.setText("15");
+            txtXMin2D.setText("-360");
+            txtXMax2D.setText("360");
+            txtPaso2D.setText("15");
         }
     }
 
-    private void ejecutarDesdeVentana() {
-        String fn = (String) cmbFuncion.getSelectedItem();
-        String modo = (String) cmbModo.getSelectedItem();
+    private void ajustarRangoPorDefecto3D() {
+        String fn = (String) cmbFuncion3D.getSelectedItem();
+        if ("sombrero".equals(fn)) {
+            txtXMin3D.setText("-8");
+            txtXMax3D.setText("8");
+            txtYMin3D.setText("-8");
+            txtYMax3D.setText("8");
+            txtPaso3D.setText("0.25");
+        } else if ("gaussiana".equals(fn)) {
+            txtXMin3D.setText("-3");
+            txtXMax3D.setText("3");
+            txtYMin3D.setText("-3");
+            txtYMax3D.setText("3");
+            txtPaso3D.setText("0.15");
+        } else {
+            txtXMin3D.setText("-5");
+            txtXMax3D.setText("5");
+            txtYMin3D.setText("-5");
+            txtYMax3D.setText("5");
+            txtPaso3D.setText("0.25");
+        }
+    }
+
+    private void ejecutarDesdeVentana2D() {
+        String fn = (String) cmbFuncion2D.getSelectedItem();
+        String modo = (String) cmbModo2D.getSelectedItem();
         try {
-            double valor = Double.parseDouble(txtValor.getText().trim());
-            double xMin = Double.parseDouble(txtXMin.getText().trim());
-            double xMax = Double.parseDouble(txtXMax.getText().trim());
-            double paso = Double.parseDouble(txtPaso.getText().trim());
+            double valor = Double.parseDouble(txtValor2D.getText().trim());
+            double xMin = Double.parseDouble(txtXMin2D.getText().trim());
+            double xMax = Double.parseDouble(txtXMax2D.getText().trim());
+            double paso = Double.parseDouble(txtPaso2D.getText().trim());
 
-            // Ejecutar en hilo separado para no bloquear la interfaz Swing
-            new Thread(() -> {
-                procesarYGraficarEnTiempoReal(dao, fn, valor, xMin, xMax, paso, modo, true);
-            }).start();
-
+            new Thread(() -> procesarYGraficarEnTiempoReal(dao, fn, valor, xMin, xMax, paso, modo, true)).start();
         } catch (NumberFormatException ex) {
-            actualizarMensajeError("Error de formato: verifique que Valor, xMin, xMax y Paso sean números válidos.");
+            actualizarMensajeError("Error numérico en 2D: verifique Valor, xMin, xMax y Paso.");
         }
     }
 
-    /**
-     * Carga y muestra en tiempo real la imagen PNG generada por Python.
-     */
+    private void ejecutarDesdeVentana3D() {
+        String fn = (String) cmbFuncion3D.getSelectedItem();
+        String paleta = (String) cmbPaleta3D.getSelectedItem();
+        try {
+            double xMin = Double.parseDouble(txtXMin3D.getText().trim());
+            double xMax = Double.parseDouble(txtXMax3D.getText().trim());
+            double yMin = Double.parseDouble(txtYMin3D.getText().trim());
+            double yMax = Double.parseDouble(txtYMax3D.getText().trim());
+            double paso = Double.parseDouble(txtPaso3D.getText().trim());
+
+            new Thread(() -> procesarYGraficar3D(dao, fn, xMin, xMax, yMin, yMax, paso, paleta)).start();
+        } catch (NumberFormatException ex) {
+            actualizarMensajeError("Error numérico en 3D: verifique límites de X, Y y Paso.");
+        }
+    }
+
+    public static void procesarYGraficar3D(CalculoDAO dao, String fn, double xMin, double xMax,
+                                           double yMin, double yMax, double paso, String paleta) {
+        try {
+            String rutaSalida = "bd" + File.separator + "grafica_3d.png";
+            String rutaActual = "bd" + File.separator + "grafica_actual.png";
+
+            String rutaGenerada = Graficador3D.generarSuperficie3D(fn, xMin, xMax, yMin, yMax, paso, rutaSalida, paleta);
+            Graficador3D.generarSuperficie3D(fn, xMin, xMax, yMin, yMax, paso, rutaActual, paleta);
+
+            String resumen = String.format("Superficie 3D generada: '%s' [X: %.1f a %.1f, Y: %.1f a %.1f, paleta: %s]",
+                    fn, xMin, xMax, yMin, yMax, paleta);
+
+            System.out.println("🌐 Superficie 3D guardada en: " + rutaGenerada);
+            System.out.println("🌐 Copia rápida en: " + new File(rutaActual).getAbsolutePath());
+
+            VisorGrafica visor = obtenerVisor(dao);
+            if (visor != null) {
+                visor.actualizarImagenDirecta(rutaGenerada, resumen);
+            }
+        } catch (Exception e) {
+            System.out.println("ERROR al generar superficie 3D: " + e.getMessage());
+            VisorGrafica visor = obtenerVisor(dao);
+            if (visor != null) {
+                visor.actualizarMensajeError("ERROR 3D: " + e.getMessage());
+            }
+        }
+    }
+
+    public void actualizarImagenDirecta(String rutaPng, String mensajeResumen) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                File archivo = new File(rutaPng);
+                if (archivo.exists()) {
+                    panelImagen.setImagen(ImageIO.read(archivo));
+                }
+                lblEstado.setText(mensajeResumen);
+                lblEstado.setForeground(new Color(22, 101, 52));
+                lblRutaArchivo.setText("Renderizado en: " + archivo.getAbsolutePath());
+                if (!isVisible()) {
+                    setVisible(true);
+                }
+                toFront();
+            } catch (Exception e) {
+                actualizarMensajeError("Error al cargar imagen 3D: " + e.getMessage());
+            }
+        });
+    }
+
     public void actualizarGrafica(String rutaPng, String mensajeResumen, String fn, Double valor, String modo,
                                   double xMin, double xMax, double paso) {
         SwingUtilities.invokeLater(() -> {
             try {
                 File archivo = new File(rutaPng);
                 if (archivo.exists()) {
-                    BufferedImage img = ImageIO.read(archivo);
-                    panelImagen.setImagen(img);
+                    panelImagen.setImagen(ImageIO.read(archivo));
                 }
-                if (fn != null) {
-                    cmbFuncion.setSelectedItem(fn);
-                }
-                if (modo != null) {
-                    cmbModo.setSelectedItem(modo);
-                }
-                if (valor != null) {
-                    txtValor.setText(String.valueOf(valor));
-                }
-                txtXMin.setText(String.valueOf(xMin));
-                txtXMax.setText(String.valueOf(xMax));
-                txtPaso.setText(String.valueOf(paso));
+                if (fn != null) cmbFuncion2D.setSelectedItem(fn);
+                if (modo != null) cmbModo2D.setSelectedItem(modo);
+                if (valor != null) txtValor2D.setText(String.valueOf(valor));
+                txtXMin2D.setText(String.valueOf(xMin));
+                txtXMax2D.setText(String.valueOf(xMax));
+                txtPaso2D.setText(String.valueOf(paso));
 
                 lblEstado.setText(mensajeResumen);
                 lblEstado.setForeground(new Color(22, 101, 52));
-                lblRutaArchivo.setText("Guardado en SQLite (bd\\calculadora.db) y renderizado en: " + archivo.getAbsolutePath());
+                lblRutaArchivo.setText("Guardado en SQLite y renderizado en: " + archivo.getAbsolutePath());
 
-                if (!isVisible()) {
-                    setVisible(true);
-                }
+                if (!isVisible()) setVisible(true);
                 toFront();
             } catch (Exception e) {
-                lblEstado.setText("Error al cargar imagen PNG: " + e.getMessage());
-                lblEstado.setForeground(new Color(185, 28, 28));
+                actualizarMensajeError("Error al cargar imagen PNG: " + e.getMessage());
             }
         });
     }
@@ -225,16 +360,11 @@ public class VisorGrafica extends JFrame {
         SwingUtilities.invokeLater(() -> {
             lblEstado.setText(mensajeError);
             lblEstado.setForeground(new Color(185, 28, 28));
-            if (!isVisible()) {
-                setVisible(true);
-            }
+            if (!isVisible()) setVisible(true);
             toFront();
         });
     }
 
-    /**
-     * Obtiene o crea la instancia única del visor gráfico si el entorno soporta interfaz gráfica.
-     */
     public static synchronized VisorGrafica obtenerVisor(CalculoDAO dao) {
         if (GraphicsEnvironment.isHeadless()) {
             return null;
@@ -245,13 +375,6 @@ public class VisorGrafica extends JFrame {
         return instancia;
     }
 
-    /**
-     * Orquesta el flujo completo en tiempo real:
-     * 1) Calcula el valor puntual (si se suministra) y lo guarda en la tabla 'calculo'.
-     * 2) Genera la serie de puntos con trig.py y la guarda transaccionalmente en 'serie' y 'punto'.
-     * 3) Renderiza el archivo PNG con graficar.py marcando el punto evaluado.
-     * 4) Muestra/actualiza la gráfica en vivo en la ventana interactiva.
-     */
     public static void procesarYGraficarEnTiempoReal(CalculoDAO dao, String fn, Double valorPuntual,
                                                      double xMin, double xMax, double paso,
                                                      String modo, boolean registrarCalculoPuntual) {
@@ -274,7 +397,6 @@ public class VisorGrafica extends JFrame {
         Double resultadoPuntual = null;
         String errorPuntual = null;
 
-        // 1. Si hay un valor puntual, calcularlo y guardarlo en SQLite
         if (valorPuntual != null) {
             try {
                 resultadoPuntual = trigOp.calcular(valorPuntual, 0);
@@ -289,17 +411,11 @@ public class VisorGrafica extends JFrame {
             }
         }
 
-        // Asegurar que el rango [xMin, xMax] incluya al valorPuntual para que sea visible en la gráfica
         if (valorPuntual != null && resultadoPuntual != null) {
-            if (valorPuntual < xMin) {
-                xMin = valorPuntual - paso * 2;
-            }
-            if (valorPuntual > xMax) {
-                xMax = valorPuntual + paso * 2;
-            }
+            if (valorPuntual < xMin) xMin = valorPuntual - paso * 2;
+            if (valorPuntual > xMax) xMax = valorPuntual + paso * 2;
         }
 
-        // 2. Generar la serie en Python y guardarla en SQLite
         try {
             List<Double[]> puntos = trigOp.generarSeriePython(xMin, xMax, paso, modo);
 
@@ -325,7 +441,6 @@ public class VisorGrafica extends JFrame {
             String rutaPng = "bd" + File.separator + "grafica_serie_" + serieId + ".png";
             String rutaPngActual = "bd" + File.separator + "grafica_actual.png";
 
-            // 3. Invocar graficar.py (genera tanto grafica_serie_<id>.png como grafica_actual.png)
             String rutaGenerada = OperacionTrigonometrica.ejecutarGraficarPython(
                     rutaDb, serieId, rutaPng, valorPuntual, resultadoPuntual
             );
@@ -347,7 +462,6 @@ public class VisorGrafica extends JFrame {
             System.out.println("📈 Gráfica guardada en: " + rutaGenerada);
             System.out.println("📈 Copia rápida actualizada en: " + new File(rutaPngActual).getAbsolutePath());
 
-            // 4. Actualizar visor en tiempo real
             VisorGrafica visor = obtenerVisor(dao);
             if (visor != null) {
                 visor.actualizarGrafica(rutaGenerada, resumen, fn, valorPuntual, modo, xMin, xMax, paso);
@@ -363,15 +477,10 @@ public class VisorGrafica extends JFrame {
     }
 
     private static String formatearNum(double v) {
-        if (v == (long) v) {
-            return String.format("%d", (long) v);
-        }
+        if (v == (long) v) return String.format("%d", (long) v);
         return String.valueOf(v);
     }
 
-    /**
-     * Panel personalizado que escala la imagen PNG manteniendo su proporción y nitidez.
-     */
     private static class PanelImagen extends JPanel {
         private BufferedImage imagen;
 
@@ -392,7 +501,7 @@ public class VisorGrafica extends JFrame {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setColor(new Color(100, 116, 139));
                 g2.setFont(new Font("SansSerif", Font.ITALIC, 15));
-                String msg = "La gráfica aparecerá aquí en tiempo real en cuanto ingreses una operación...";
+                String msg = "Seleccione una función 2D o superficie 3D para ver la gráfica en tiempo real...";
                 FontMetrics fm = g2.getFontMetrics();
                 int x = (getWidth() - fm.stringWidth(msg)) / 2;
                 int y = getHeight() / 2;
